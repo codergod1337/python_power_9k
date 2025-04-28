@@ -35,6 +35,21 @@ BOUNDING_BOX_PEN = QPen(QColor(255, 0, 0))  # Rot
 BOUNDING_BOX_PEN.setWidth(2)
 BOUNDING_BOX_PEN.setStyle(Qt.SolidLine)
 
+# === Pen zum Aufziehen neuer Bounding-Boxes ===
+DRAWING_BOX_PEN = QPen(QColor(200, 200, 200))  # Grau
+DRAWING_BOX_PEN.setWidth(1)
+DRAWING_BOX_PEN.setStyle(Qt.DashLine)
+
+# Hover-Zustand (Pre-Select)
+PRESELECTED_BOX_PEN = QPen(QColor(255, 165, 0))  # Orange
+PRESELECTED_BOX_PEN.setWidth(2)
+PRESELECTED_BOX_PEN.setStyle(Qt.DashLine)
+
+# Aktivierte Box (Select)
+SELECTED_BOX_PEN = QPen(QColor(0, 255, 0))  # Grün
+SELECTED_BOX_PEN.setWidth(2)
+SELECTED_BOX_PEN.setStyle(Qt.SolidLine)
+
 # === Label-Klassen-Konfiguration ===
 # Hier definierst du deine Klassen und kannst pro Klasse beliebig viele Features anlegen.
 # Format: "klasse_schluessel": {

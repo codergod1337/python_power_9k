@@ -6,10 +6,30 @@
         "id": 1,
         "label": "person",
         "rect": [
-          2135,
-          892,
-          80,
-          122
+          1264,
+          760,
+          362,
+          349
+        ]
+      },
+      {
+        "id": 3,
+        "label": "person",
+        "rect": [
+          1350,
+          846,
+          178,
+          181
+        ]
+      },
+      {
+        "id": 5,
+        "label": "person",
+        "rect": [
+          794,
+          712,
+          195,
+          255
         ]
       }
     ]
@@ -17,11 +37,11 @@
   "current_frame": 0,
   "current_label": "person",
   "counters": {
-    "person": 1
+    "person": 5
   },
   "view": {
-    "scale_factor": 0.7733447131825385,
-    "offset_x": -82.5388490783248,
-    "offset_y": 28.310297570332864
+    "scale_factor": 0.29815786458333343,
+    "offset_x": 19.49219999999997,
+    "offset_y": 21.020493750000043
   }
 }
