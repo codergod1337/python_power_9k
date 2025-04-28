@@ -1,0 +1,27 @@
+{
+  "video": "D:\\Codergod1337GIT\\python_power_9k\\bounding_boxer\\data\\input\\DJI_0864.MP4",
+  "bboxes": {
+    "0": [
+      {
+        "id": 1,
+        "label": "person",
+        "rect": [
+          2135,
+          892,
+          80,
+          122
+        ]
+      }
+    ]
+  },
+  "current_frame": 0,
+  "current_label": "person",
+  "counters": {
+    "person": 1
+  },
+  "view": {
+    "scale_factor": 0.7733447131825385,
+    "offset_x": -82.5388490783248,
+    "offset_y": 28.310297570332864
+  }
+}
