@@ -1,10 +1,10 @@
-# main.py 
-
 import sys
 from pathlib import Path
+from PyQt5 import QtCore
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget,
-    QAction, QFileDialog, QLabel, QVBoxLayout, QMessageBox
+    QAction, QFileDialog, QLabel, QVBoxLayout, QMessageBox,
+    QHeaderView, QTableWidget, QTableWidgetItem, QStackedLayout
 )
 from PyQt5.QtCore import Qt
 
@@ -45,8 +45,7 @@ class MainWindow(QMainWindow):
             act.triggered.connect(lambda checked, k=key: self.on_label_selected(k))
             label_menu.addAction(act)
             self.label_actions[key] = act
-        default_key = next(iter(LABEL_CLASSES))
-        self.current_label = default_key
+        self.current_label = next(iter(LABEL_CLASSES))
 
         # Statusleiste
         if SHOW_STATUS_WINDOW_COORDS:
@@ -70,58 +69,90 @@ class MainWindow(QMainWindow):
                 f"color: rgb({c.red()},{c.green()},{c.blue()});"
             )
             self.statusBar().addPermanentWidget(self.zoom_label)
-        # Label-Status
+        # Frame-Status
+        self.frame_label = QLabel("Frame: 0")
+        self.statusBar().addPermanentWidget(self.frame_label)
+        # Label-Klasse-Status
         self.label_status = QLabel("")
         self.statusBar().addPermanentWidget(self.label_status)
 
-        # Zentrales Widget und Layout
-        central = QWidget()
-        layout = QVBoxLayout(central)
+        # Canvas (Editor) verstecken
         self.canvas = Canvas()
         self.canvas.current_label = self.current_label
         self.canvas.hide()
-        layout.addWidget(self.canvas)
+
+        # Startscreen mit Tabelle
+        self.start_screen = QWidget()
+        start_layout = QVBoxLayout(self.start_screen)
+        start_layout.addWidget(QLabel("Verfügbare Projekte:"))
+        self.project_table = QTableWidget(0, 2)
+        self.project_table.setHorizontalHeaderLabels(["Datei", "Zuletzt geändert"])
+        hdr = self.project_table.horizontalHeader()
+        hdr.setSectionResizeMode(0, QHeaderView.Stretch)
+        hdr.setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        self.project_table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.project_table.setSelectionBehavior(QTableWidget.SelectRows)
+        start_layout.addWidget(self.project_table)
+
+        # Editor-Screen
+        self.editor_screen = QWidget()
+        editor_layout = QVBoxLayout(self.editor_screen)
+        editor_layout.addWidget(self.canvas)
+
+        # Stacked Layout
+        central = QWidget()
+        self.stack = QStackedLayout()
+        central.setLayout(self.stack)
+        self.stack.addWidget(self.start_screen)
+        self.stack.addWidget(self.editor_screen)
         self.setCentralWidget(central)
 
-        # VideoLoader & ProjectManager
-        self.loader = VideoLoader()
-        self.project = None
+        # Projekte-Ordner vorbereiten
+        try:
+            PROJECT_FOLDER.mkdir(parents=True, exist_ok=True)
+        except Exception as e:
+            QMessageBox.critical(self, "Fehler", f"Projektordner nicht anlegbar:\n{e}")
 
-        # Aktionen verbinden
+        # Aktionen
         new_action.triggered.connect(self.start_new_project)
         open_action.triggered.connect(self.open_existing_project)
         save_action.triggered.connect(self.save_project)
+        self.project_table.cellDoubleClicked.connect(self.open_project_from_table)
 
-    def _update_label_status(self):
-        disp = LABEL_CLASSES.get(self.current_label, {}).get("display_name", "")
-        self.label_status.setText(f"Label: {disp}")
+        self.loader = VideoLoader()
+        self.project = None
+        self.load_project_list()
 
-    def on_label_selected(self, key):
-        for k, act in self.label_actions.items():
-            act.setChecked(k == key)
-        self.current_label = key
-        if hasattr(self.canvas, "current_label"):
-            self.canvas.current_label = key
-        self._update_label_status()
+    def load_project_list(self):
+        self.project_table.setRowCount(0)
+        entries = []
+        for fn in PROJECT_FOLDER.iterdir():
+            if fn.is_file() and fn.name.endswith('_boxes.json'):
+                entries.append((fn.stat().st_mtime, fn.name))
+        entries.sort(key=lambda x: x[0], reverse=True)
+        for mtime, name in entries:
+            row = self.project_table.rowCount()
+            self.project_table.insertRow(row)
+            item_name = QTableWidgetItem(name)
+            dt = QtCore.QDateTime.fromSecsSinceEpoch(int(mtime))
+            item_date = QTableWidgetItem(dt.toString('yyyy-MM-dd HH:mm:ss'))
+            self.project_table.setItem(row, 0, item_name)
+            self.project_table.setItem(row, 1, item_date)
 
-    def update_status(self, wx, wy, ix, iy, zf):
-        if SHOW_STATUS_WINDOW_COORDS:
-            self.win_coord_label.setText(f"W: {wx},{wy}")
-        if SHOW_STATUS_IMAGE_COORDS:
-            img_str = f"{ix},{iy}" if ix is not None else "-,-"
-            self.img_coord_label.setText(f"I: {img_str}")
-        if SHOW_STATUS_ZOOM:
-            self.zoom_label.setText(f"Z: {zf:.2f}x")
+    def open_project_from_table(self, row, col):
+        item = self.project_table.item(row, 0)
+        if not item:
+            return
+        path = PROJECT_FOLDER / item.text()
+        if path.exists():
+            self.project = ProjectManager.load_project(path)
+            self.loader.open(self.project.video_path)
+            self.after_project_loaded()
 
     def start_new_project(self):
         if self.loader.select_video():
             self.project = ProjectManager(Path(self.loader.video_path))
-            name = Path(self.loader.video_path).name
-            self.setWindowTitle(f"Video Labeling Tool - {name}")
-            self.save_action.setEnabled(True)
-            # Standard-Label initial setzen
-            self.on_label_selected(self.current_label)
-            self.initialize_canvas(new=True)
+            self.after_project_loaded(new=True)
 
     def open_existing_project(self):
         proj_path, _ = QFileDialog.getOpenFileName(
@@ -130,15 +161,13 @@ class MainWindow(QMainWindow):
         if proj_path:
             self.project = ProjectManager.load_project(Path(proj_path))
             self.loader.open(self.project.video_path)
-            name = Path(self.project.video_path).name
-            self.setWindowTitle(f"Video Labeling Tool - {name}")
-            self.save_action.setEnabled(True)
-            # Wiederhergestellte Label auswählen
-            if self.project.current_label:
-                self.on_label_selected(self.project.current_label)
-            self.initialize_canvas(new=False)
+            self.after_project_loaded()
 
-    def initialize_canvas(self, new: bool):
+    def after_project_loaded(self, new=False):
+        name = Path(self.project.video_path).name
+        self.setWindowTitle(f"Video Labeling Tool - {name}")
+        self.save_action.setEnabled(True)
+        self.on_label_selected(self.project.current_label or self.current_label)
         idx = self.project.current_frame
         pixmap = self.loader.get_frame(idx)
         if pixmap:
@@ -155,39 +184,38 @@ class MainWindow(QMainWindow):
                 self.canvas.offset_y = self.project.offset_y
                 self.canvas.update()
             self.update_status(0, 0, None, None, self.canvas.scale_factor)
+        self.stack.setCurrentWidget(self.editor_screen)
+
+    def on_label_selected(self, key):
+        for k, act in self.label_actions.items():
+            act.setChecked(k == key)
+        self.current_label = key
+        self.canvas.current_label = key
+        disp = LABEL_CLASSES[key]['display_name']
+        self.label_status.setText(f"Label: {disp}")
+
+    def update_status(self, wx, wy, ix, iy, zf):
+        if SHOW_STATUS_WINDOW_COORDS:
+            self.win_coord_label.setText(f"W: {wx},{wy}")
+        if SHOW_STATUS_IMAGE_COORDS:
+            self.img_coord_label.setText(
+                f"I: {ix if ix is not None else '-'}, {iy if iy is not None else '-'}"
+            )
+        if SHOW_STATUS_ZOOM:
+            self.zoom_label.setText(f"Z: {zf:.2f}x")
 
     def save_project(self):
-        """Speichert das Projekt ohne weiteren Dialog automatisch im Projekt-Ordner."""
-        # 1) Session-Zustand aktualisieren
-        self.project.current_frame   = 0  # sofern noch keine Frame-Navigation existiert
-        self.project.current_label   = self.current_label
-        self.project.scale_factor    = self.canvas.scale_factor
-        self.project.offset_x        = self.canvas.offset_x
-        self.project.offset_y        = self.canvas.offset_y
-
-        # 2) Projekt-Ordner anlegen (falls noch nicht da)
-        try:
-            PROJECT_FOLDER.mkdir(parents=True, exist_ok=True)
-        except Exception as e:
-            QMessageBox.critical(
-                self,
-                "Fehler",
-                f"Projektordner konnte nicht erstellt werden:\n{e}"
-            )
-            return
-
-        # 3) Pfad zusammenbauen und speichern
-        save_path = PROJECT_FOLDER / f"{self.project.video_path.stem}_boxes.json"
+        self.project.current_frame = 0
+        self.project.current_label = self.current_label
+        self.project.scale_factor = self.canvas.scale_factor
+        self.project.offset_x = self.canvas.offset_x
+        self.project.offset_y = self.canvas.offset_y
+        save_path = PROJECT_FOLDER / f"{Path(self.project.video_path).stem}_boxes.json"
         try:
             self.project.save_project(save_path)
-            # Kurze Bestätigung in der Status-Leiste
             self.statusBar().showMessage(f"✅ Projekt gespeichert: {save_path}", 5000)
         except Exception as e:
-            QMessageBox.critical(
-                self,
-                "Fehler",
-                f"Speichern fehlgeschlagen:\n{e}"
-            )
+            QMessageBox.critical(self, "Fehler", f"Speichern fehlgeschlagen:\n{e}")
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
