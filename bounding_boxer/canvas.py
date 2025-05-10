@@ -59,8 +59,8 @@ class Canvas(QWidget):
 
     def set_pixmap(self, pixmap: QPixmap):
         self.original_pixmap = pixmap
-        self.scale_factor = 1.0
-        self.offset_x = self.offset_y = 0.0
+        #self.scale_factor = 1.0
+        #self.offset_x = self.offset_y = 0.0
         self.update()
 
     def fit_to_window(self):

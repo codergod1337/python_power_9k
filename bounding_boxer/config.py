@@ -79,3 +79,7 @@ LABEL_CLASSES: dict[str, dict] = {
     },
     # Weitere Klassen hier hinzufügen...
 }
+
+# === Steuerbutton-Gruppe ===
+BUTTON_GROUP_POSITION_X: int = 25  # Abstand von links in Pixel
+BUTTON_GROUP_POSITION_Y: int = 25  # Abstand von unten in Pixel

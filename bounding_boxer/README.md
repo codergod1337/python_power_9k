@@ -13,7 +13,7 @@
 
 ## 🚀 Voraussetzungen
 
-- Python 3.8+
+- Python 3.8+ all312
 - PyQt5
 - OpenCV (für Video-Laden)
 
@@ -88,5 +88,5 @@ pip install PyQt5 opencv-python
 
 ## 📄 Lizenz
 
-Dieses Projekt steht unter MIT-Lizenz.
+Dieses Projekt steht unter 🎀 MIT-Lizenz.
 
